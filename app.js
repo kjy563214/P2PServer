@@ -1,13 +1,15 @@
 /**
  * Module dependencies.
  */
-var express = require('express');
-
+var express = require('express')
+,	path = require('path');
+	
 var app = express();
 
 // all environments
 app.set('port', process.env.PORT || 3000);
 app.set('view engine', 'ejs');
+app.use(express.static(path.join(__dirname, 'public')));
 
 var index = function(req, res) {
     res.render('index', {
@@ -21,7 +23,12 @@ var server = app.listen(app.get('port'), function(){
 });
 
 var io = require('socket.io').listen(server);
+
+/**
+ * Database
+ */
+var db = require('./app/database.js');
 /**
  * Socket.io event handling
  */
-require('./app/socketHandler.js')(io);
+require('./app/socketHandler.js')(io, db);
