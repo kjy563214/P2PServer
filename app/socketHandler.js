@@ -11,41 +11,91 @@ module.exports = function(io, db) {
     client.emit("id", client.id);
 
 	function onReceiveInit(message){
-
 		// If have been registered
 		if (message.pid != 0){
 		    client.pid = message.pid;
-		    for (var i = 0; i < mSockets.length; i++) {
-                var otherClient = mSockets[i];
-                if (client.id != otherClient.id) {
-                    otherClient.emit('init',  {
-                        fromTid: client.id,
-                        fromPid: message.pid,
-                        name: message.name
-                    });
-                    console.log("send init to " + otherClient.id);
-                }
+		    client.name = message.name;
+
+		    peers = new Map();
+		    for (var i = 0;i < mSockets.length; i++){
+		        var otherClient = mSockets[i];
+                peers.set(otherClient.pid, otherClient.name);
 		    }
+
+		    let obj = Object.create(null);
+            for (var [key, value] of peers) {
+              obj[key] = value;
+              console.log(key + "=" + value);
+            }
+
+            for (var i = 0;i < mSockets.length; i++){
+            var otherClient = mSockets[i];
+                console.log("send " + JSON.stringify(obj) +　" to " + otherClient.name);
+		        otherClient.emit("peers", JSON.stringify(obj));
+		    }
+
 		    console.log('--- ' + message.pid + ' init, name: ' + message.name + ",tid: " + client.id + " ---");
+
+
 		}else{
             // If have not registered
             db.insertNewPeer([0, client.id, message.name], function(pid){
                 client.pid = pid;
-                for (var i = 0; i < mSockets.length; i++) {
+                client.name = message.name;
+
+                peers = new Map();
+                for (var i = 0;i < mSockets.length; i++){
                     var otherClient = mSockets[i];
-                    if (client.id != otherClient.id) {
-                        otherClient.emit('init',  {
-                            fromTid: client.id,
-                            fromPid: pid,
-                            name: message.name
-                        });
-                        console.log("send init to " + otherClient.id);
-                    }
+                    peers.set(otherClient.pid, otherClient.name);
                 }
+
+                let obj = Object.create(null);
+                for (var [key, value] of peers) {
+                  obj[key] = value;
+                  console.log(key + "=" + value);
+                }
+
+                for (var i = 0;i < mSockets.length; i++){
+                var otherClient = mSockets[i];
+                    console.log("send " + JSON.stringify(obj) +　" to " + otherClient.name);
+                    otherClient.emit("peers", JSON.stringify(obj));
+                }
+
                 client.emit("pid", pid);
                 console.log('--- ' + pid + ' init, name: ' + message.name + ",tid: " + client.id + " ---");
             });
 		}
+	}
+
+	function onReceiveFetchPeerList(message) {
+	    console.log("Receive fetch peer list, send all peer list to " + client.id + "." + client.name);
+	    peers = new Map();
+        for (var i = 0;i < mSockets.length; i++){
+            var otherClient = mSockets[i];
+            peers.set(otherClient.pid, otherClient.name);
+        }
+	    let obj = Object.create(null);
+        for (var [key, value] of peers) {
+          obj[key] = value;
+        }
+        client.emit("peers", JSON.stringify(obj));
+	}
+
+	function onReceiveFetch(message){
+	    console.log("Receive fetch request: " + message);
+	    for (var i = 0; i < mSockets.length; i++) {
+            var otherClient = mSockets[i];
+            console.log("Comapre " + otherClient.pid + " with " + message.toPid);
+            if (otherClient.pid == message.toPid) {
+                otherClient.emit('fetch',  {
+                    fromTid: client.id,
+                    fromPid: message.fromPid,
+                    fromName: message.fromName
+                });
+                console.log("send init to " + otherClient.id);
+                break;
+            }
+        }
 	}
 
 	function onReceiveMessage(message){
@@ -78,6 +128,8 @@ module.exports = function(io, db) {
     }
 
 	client.on('init', onReceiveInit);
+	client.on('fetch', onReceiveFetch);
+	client.on('fetchPeerList', onReceiveFetchPeerList);
     client.on('message', onReceiveMessage);
     client.on('disconnect', leave);
     client.on('leave', leave);
