@@ -118,6 +118,21 @@ module.exports = function(io, db) {
         otherClient.emit('message', message);
 	}
 
+	function onReceiveChangeName(message){
+        db.updateName(message.fromPid, message.newName);
+        client.emit("success", {
+            operation: "changeName",
+            newName: message.newName
+        });
+	}
+
+    function onReceiveDestroy(message){
+        db.deletePeer(message.fromPid);
+        client.emit("success", {
+            operation: "destroyAccount",
+        });
+    }
+
     function leave() {
       console.log('-- ' + client.id + ' left --');
       var index = 0;
@@ -131,6 +146,10 @@ module.exports = function(io, db) {
 	client.on('fetch', onReceiveFetch);
 	client.on('fetchPeerList', onReceiveFetchPeerList);
     client.on('message', onReceiveMessage);
+
+    client.on("changeName", onReceiveChangeName);
+    client.on("destroy", onReceiveDestroy);
+
     client.on('disconnect', leave);
     client.on('leave', leave);
   });
