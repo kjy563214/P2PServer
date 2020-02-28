@@ -34,7 +34,7 @@ module.exports = function(io, db) {
             db.insertNewPeer([0, client.id, message.name], function(pid){
                 client.pid = pid;
                 client.name = message.name;
-                mSockets.set(message.pid, client);
+                mSockets.set(pid, client);
 
                 let obj = Object.create(null);
                 for (var [key, value] of mSockets) {
