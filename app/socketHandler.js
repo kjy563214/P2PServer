@@ -2,11 +2,10 @@ const idLength = 6;
 
 module.exports = function(io, db) {
 
-  var mSockets = [];
+  var mSockets = new Map();
 
   io.on('connection', function(client) {
     console.log('-- ' + client.id + ' joined --');
-    mSockets.push(client);
 
     client.emit("id", client.id);
 
@@ -15,50 +14,37 @@ module.exports = function(io, db) {
 		if (message.pid != 0){
 		    client.pid = message.pid;
 		    client.name = message.name;
-
-		    peers = new Map();
-		    for (var i = 0;i < mSockets.length; i++){
-		        var otherClient = mSockets[i];
-                peers.set(otherClient.pid, otherClient.name);
-		    }
+            mSockets.set(message.pid, client);
 
 		    let obj = Object.create(null);
-            for (var [key, value] of peers) {
-              obj[key] = value;
-              console.log(key + "=" + value);
+            for (var [key, value] of mSockets) {
+                obj[key] = value.name;
+                console.log(key + "=" + value.name);
             }
 
-            for (var i = 0;i < mSockets.length; i++){
-            var otherClient = mSockets[i];
-                console.log("send " + JSON.stringify(obj) +　" to " + otherClient.name);
-		        otherClient.emit("peers", JSON.stringify(obj));
-		    }
+            for (var [pid, peer] of mSockets){
+                console.log("send " + JSON.stringify(obj) +　" to " + peer.name);
+                peer.emit("peers", JSON.stringify(obj));
+            }
 
 		    console.log('--- ' + message.pid + ' init, name: ' + message.name + ",tid: " + client.id + " ---");
-
 
 		}else{
             // If have not registered
             db.insertNewPeer([0, client.id, message.name], function(pid){
                 client.pid = pid;
                 client.name = message.name;
-
-                peers = new Map();
-                for (var i = 0;i < mSockets.length; i++){
-                    var otherClient = mSockets[i];
-                    peers.set(otherClient.pid, otherClient.name);
-                }
+                mSockets.set(message.pid, client);
 
                 let obj = Object.create(null);
-                for (var [key, value] of peers) {
-                  obj[key] = value;
-                  console.log(key + "=" + value);
+                for (var [key, value] of mSockets) {
+                  obj[key] = value.name;
+                  console.log(key + "=" + value.name);
                 }
 
-                for (var i = 0;i < mSockets.length; i++){
-                var otherClient = mSockets[i];
-                    console.log("send " + JSON.stringify(obj) +　" to " + otherClient.name);
-                    otherClient.emit("peers", JSON.stringify(obj));
+               for (var [pid, peer] of mSockets){
+                    console.log("send " + JSON.stringify(obj) +　" to " + peer.name);
+                    peer.emit("peers", JSON.stringify(obj));
                 }
 
                 client.emit("pid", pid);
@@ -69,53 +55,37 @@ module.exports = function(io, db) {
 
 	function onReceiveFetchPeerList(message) {
 	    console.log("Receive fetch peer list, send all peer list to " + client.id + "." + client.name);
-	    peers = new Map();
-        for (var i = 0;i < mSockets.length; i++){
-            var otherClient = mSockets[i];
-            peers.set(otherClient.pid, otherClient.name);
-        }
+
 	    let obj = Object.create(null);
-        for (var [key, value] of peers) {
-          obj[key] = value;
+        for (var [key, value] of mSockets) {
+            obj[key] = value.name;
         }
         client.emit("peers", JSON.stringify(obj));
 	}
 
 	function onReceiveFetch(message){
 	    console.log("Receive fetch request: " + message);
-	    for (var i = 0; i < mSockets.length; i++) {
-            var otherClient = mSockets[i];
-            console.log("Comapre " + otherClient.pid + " with " + message.toPid);
-            if (otherClient.pid == message.toPid) {
-                otherClient.emit('fetch',  {
-                    fromTid: client.id,
-                    fromPid: message.fromPid,
-                    fromName: message.fromName
-                });
-                console.log("send init to " + otherClient.id);
-                break;
-            }
-        }
+
+        var target = mSockets.get(message.toPid);
+        target.emit('fetch',  {
+            fromTid: client.id,
+            fromPid: message.fromPid,
+            fromName: message.fromName
+        });
+        console.log("send init to " + target.id);
 	}
 
 	function onReceiveMessage(message){
         console.log('-- ' + client.id + ' message --' + JSON.stringify(message));
 
-        for (var i = 0; i < mSockets.length; i++) {
-            var otherClient;
-            if (message.to == mSockets[i].pid) {
+        var target = mSockets.get(message.to);
+        target = io.sockets.connected[target.id];
 
-               otherClient = io.sockets.connected[mSockets[i].id];
-               break;
-            }
-        }
-
-        if (!otherClient) {
+        if (!target) {
             return;
         }
-        delete message.to;
 
-        otherClient.emit('message', message);
+        target.emit('message', message);
 	}
 
 	function onReceiveChangeName(message){
@@ -124,6 +94,7 @@ module.exports = function(io, db) {
             operation: "changeName",
             newName: message.newName
         });
+        client.name = message.newName;
 	}
 
     function onReceiveDestroy(message){
@@ -131,15 +102,12 @@ module.exports = function(io, db) {
         client.emit("success", {
             operation: "destroyAccount",
         });
+        msockets.delete(message.fromPid);
     }
 
     function leave() {
       console.log('-- ' + client.id + ' left --');
-      var index = 0;
-      while (index < mSockets.length && mSockets[index].id != client.id) {
-          index++;
-      }
-      mSockets.splice(index, 1);
+      mSockets.delete(client.pid);
     }
 
 	client.on('init', onReceiveInit);
