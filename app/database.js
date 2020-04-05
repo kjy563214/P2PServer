@@ -4,7 +4,7 @@ let config = {
                  user: 'root',
                  password: '123',
                  database: 'p2pdatabase'
-             }
+             } 
 
 module.exports = {
     insertNewPeer: function(peer, callback) {
@@ -14,7 +14,7 @@ module.exports = {
                 console.log("Failed to connect to database, err: " + err);
             }
         });
-        let sql = "INSERT INTO PEER(id, temporaryId, name) VALUES(?, ?, ?)";
+        let sql = "INSERT INTO PEER(id, temporaryId, name, email) VALUES(?, ?, ?, ?)";
         connection.query(sql, peer, function(err, results, fields){
             if (err){
                 console.log("Failed to insert new peer:" + peer + "\nerr: " + err);
@@ -70,4 +70,3 @@ module.exports = {
         connection.end();
     }
 };
-

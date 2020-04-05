@@ -12,9 +12,9 @@ module.exports = function(io, db) {
 	function onReceiveInit(message){
 		// If have been registered
 		if (message.pid != 0){
-		    client.pid = message.pid;
+		    client.pid = message.pid + "";
 		    client.name = message.name;
-            mSockets.set(message.pid, client);
+        mSockets.set(client.pid, client);
 
 		    let obj = Object.create(null);
             for (var [key, value] of mSockets) {
@@ -31,10 +31,11 @@ module.exports = function(io, db) {
 
 		}else{
             // If have not registered
-            db.insertNewPeer([0, client.id, message.name], function(pid){
-                client.pid = pid;
+            db.insertNewPeer([0, client.id, message.name, message.email], function(pid){
+                client.pid = pid + "";
                 client.name = message.name;
-                mSockets.set(pid, client);
+                client.email = message.email;
+                mSockets.set(client.pid, client);
 
                 let obj = Object.create(null);
                 for (var [key, value] of mSockets) {
@@ -42,13 +43,12 @@ module.exports = function(io, db) {
                   console.log(key + "=" + value.name);
                 }
 
+                client.emit("pid", pid);
+                console.log('--- ' + pid + ' init, name: ' + message.name + ",tid: " + client.id + " ---");
                for (var [pid, peer] of mSockets){
                     console.log("send " + JSON.stringify(obj) +　" to " + peer.name);
                     peer.emit("peers", JSON.stringify(obj));
                 }
-
-                client.emit("pid", pid);
-                console.log('--- ' + pid + ' init, name: ' + message.name + ",tid: " + client.id + " ---");
             });
 		}
 	}
@@ -63,16 +63,19 @@ module.exports = function(io, db) {
         client.emit("peers", JSON.stringify(obj));
 	}
 
-	function onReceiveFetch(message){
-	    console.log("Receive fetch request: " + message);
+	function onReceiveConnectWithPeer(message){
 
         var target = mSockets.get(message.toPid);
-        target.emit('fetch',  {
-            fromTid: client.id,
-            fromPid: message.fromPid,
-            fromName: message.fromName
-        });
-        console.log("send init to " + target.id);
+        console.log("Receive fetch request from " + message.fromPid + " to " + message.toPid + target + " isCustomer? " + message.isCustomer);
+        if (target){
+            target.emit('fetch',  {
+                fromTid: client.id,
+                fromPid: message.fromPid,
+                fromName: message.fromName,
+                isCustomer: message.isCustomer
+            });
+            console.log("send connect request to " + target.id  + " . " + target.name);
+        }
 	}
 
 	function onReceiveMessage(message){
@@ -86,6 +89,14 @@ module.exports = function(io, db) {
         }
 
         target.emit('message', message);
+	}
+
+	function onReceiveNotifyByEmail(message) {
+    var target = mSockets.get(message.toPid + "");
+	    console.log("receive notify request from " + message.fromPid + " to " + message.toPid
+	    + " content: " + message.content);
+      if (target)
+      console.log("Send email to " + target.email);
 	}
 
 	function onReceiveChangeName(message){
@@ -102,18 +113,21 @@ module.exports = function(io, db) {
         client.emit("success", {
             operation: "destroyAccount",
         });
-        msockets.delete(message.fromPid);
+        mSockets.delete(message.fromPid);
     }
 
     function leave() {
       console.log('-- ' + client.id + ' left --');
       mSockets.delete(client.pid);
+      delete client;
     }
 
-	client.on('init', onReceiveInit);
-	client.on('fetch', onReceiveFetch);
-	client.on('fetchPeerList', onReceiveFetchPeerList);
+  	client.on('init', onReceiveInit);
+  	client.on('connectWithPeer', onReceiveConnectWithPeer);
+  	client.on('fetchPeerList', onReceiveFetchPeerList);
     client.on('message', onReceiveMessage);
+
+    client.on("notifyByEmail", onReceiveNotifyByEmail);
 
     client.on("changeName", onReceiveChangeName);
     client.on("destroy", onReceiveDestroy);
