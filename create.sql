@@ -1,6 +1,7 @@
 USE `p2pdatabase`;
 
 DROP TABLE IF EXISTS `peer`;
+DROP TABLE IF EXISTS `wanted`;
 
 CREATE TABLE `peer` (
   `id` INT(10) NOT NULL AUTO_INCREMENT,
