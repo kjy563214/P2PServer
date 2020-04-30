@@ -13,16 +13,16 @@ var options = {
 
 var app = express();
 //
-// // all environments
-// app.set('port', process.env.PORT || 3000);
-// app.set('view engine', 'ejs');
-// app.use(express.static(path.join(__dirname, 'public')));
-//
-// var index = function(req, res) {
-//     res.render('index', {
-//       title : "WebRtcServerProject"
-//     });
-// };
+// all environments
+app.set('port', process.env.PORT || 3000);
+app.set('view engine', 'ejs');
+app.use(express.static(path.join(__dirname, 'public')));
+
+var index = function(req, res) {
+    res.render('index', {
+      title : "WebRtcServerProject"
+    });
+};
 app.get('/', index);
 //
 // var server = app.listen(app.get('port'), function(){
