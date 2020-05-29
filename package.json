@@ -9,9 +9,13 @@
   },
   "dependencies": {
     "body-parser": "^1.12.2",
+    "constraints": "^0.1.0",
     "ejs": "1.0",
     "express": "^4.12.3",
     "mysql": "^2.18.1",
     "socket.io": "1.0"
+  },
+  "devDependencies": {
+    "const": "^1.0.0"
   }
 }

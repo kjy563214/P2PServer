@@ -1,0 +1,25 @@
+config:
+  target: "https://localhost:3000/" # target server address
+  processor: "./generator.js" # set a variable generator
+  timeout: 5
+  phases:
+    - duration: 10 # Run scenario for that seconds
+      arrivalCount: 30 # Create that number of virtual users per scenario
+  socketio:
+    # Ignore SSL certificate errors
+    transports: ["websocket"]
+    rejectUnauthorized: false
+# scenarios    
+scenarios:
+  - engine: "socketio"
+    flow:
+      - function: "getSignUpData" # load variables from the generator
+      - emit:
+          channel: "signUp"
+          data: "{{ signUpData }}"
+          response:
+            channel: "signedUp"
+            capture:
+              json: "$.pid"
+              as: "token"
+      # - think: 5 # do nothing for 5 seconds, then disconnect

@@ -1,0 +1,31 @@
+config:
+  target: "https://localhost:3000/"
+  processor: "./generator.js"
+  phases:
+    - duration: 120
+      arrivalRate: 300
+  socketio:
+    transports: ["websocket"]
+    rejectUnauthorized: false
+scenarios:
+  - engine: "socketio"
+    flow:
+      - function: "getSignUpData"
+      - emit:
+          channel: "signUp"
+          data: "{{ signUpData }}"
+          response:
+            channel: "signedUp"
+            capture:
+              json: "$.pid"
+              as: "pid"
+      - function: "getLoginData"
+      - think: 5
+      - emit:
+          channel: "login"
+          data: "{{ LoginData }}"
+          response:
+            channel: "loggedIn"
+            capture:
+              json: "$.tid"
+              as: "tid"
